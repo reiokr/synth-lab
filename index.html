@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SYNTH LAB — patch &amp; composition environment</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body class="view-compose">
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">&#9673;</span>
+    <span class="brand-name">SYNTH<span>LAB</span></span>
+    <span class="brand-sub">patch &amp; composition environment</span>
+  </div>
+
+  <nav class="tabs">
+    <button class="btn tab" data-view="compose" data-i18n="tabCompose" data-i18n-tip="tabComposeTip" type="button" data-tip-title="Compose" data-tip="Tracks, piano roll and transport. Write and arrange here.">Compose</button>
+    <button class="btn tab" data-view="patch" data-i18n="tabPatch" data-i18n-tip="tabPatchTip" type="button" data-tip-title="Patch" data-tip="The sound-design rack for the selected track: oscillators, filter, envelopes, LFOs and effects.">Patch</button>
+    <button class="btn tab" data-view="help" data-i18n="tabHelp" data-i18n-tip="tabHelpTip" type="button" data-tip-title="Help" data-tip="How everything works, plus every keyboard shortcut.">Help</button>
+  </nav>
+
+  <div class="songbar">
+    <button id="btnNew" class="btn" type="button" data-tip-title="New project" data-tip="Start a blank project: 120 bpm, 2 bars, one empty track. Unsaved changes are confirmed first." data-i18n="new" data-i18n-tip="btnNewTip">New</button>
+    <button id="btnOpen" class="btn" type="button" data-tip-title="Open project" data-tip="Saved projects and the built-in demos, with rename, duplicate and delete." data-i18n="open" data-i18n-tip="btnOpenTip">Open</button>
+    <input id="songName" class="patch-name" type="text" value="Untitled" spellcheck="false" aria-label="Song name" data-tip-title="Project name" data-tip="Name of the project you are editing. An amber dot means it has unsaved changes."  data-i18n-tip="projectNameTip"/>
+    <span id="dirtyDot" class="dirty-dot" hidden data-tip-title="Unsaved changes" data-tip="This project has been edited since it was last saved. Press Save or Ctrl+S." data-i18n-tip="dirtyDotTip">&#9679;</span>
+    <button id="btnSongSave" class="btn" type="button" data-tip-title="Save project" data-tip="Save under the current name. Shortcut: Ctrl/Cmd+S." data-i18n="save" data-i18n-tip="btnSongSaveTip">Save</button>
+    <button id="btnSongSaveAs" class="btn" type="button" data-tip-title="Save project as" data-tip="Save a copy under a different name." data-i18n="saveAs" data-i18n-tip="btnSongSaveAsTip">Save&nbsp;As</button>
+    <button id="btnWav" class="btn accent" type="button" data-tip-title="Export WAV" data-tip="Render the whole loop offline, tails included, and download it as a 16-bit stereo WAV." data-i18n="exportWav" data-i18n-tip="btnWavTip">&#9654; WAV</button>
+    <button id="btnSongJson" class="btn" type="button" data-tip-title="Export JSON" data-tip="Save the project (notes, patches and mixer) as a .song.json file you can re-import or share." data-i18n="exportJson" data-i18n-tip="btnSongJsonTip">JSON</button>
+    <button id="btnSongMidi" class="btn" type="button" data-tip-title="Export MIDI" data-tip="Write a standard .mid file: one MIDI track per project track, with tempo, time signature and track names. Drag it into any DAW." data-i18n="exportMidi" data-i18n-tip="btnSongMidiTip">MIDI</button>
+    <button id="btnSongImport" class="btn" type="button" data-tip-title="Import JSON" data-tip="Load a project from a .song.json file." data-i18n="import" data-i18n-tip="btnSongImportTip">Import</button>
+    <input type="file" id="songFileInput" accept="application/json,.json" hidden />
+  </div>
+
+  <div class="langs">
+    <button class="btn sm lang" data-i18n-tip="langTip" data-lang="en" type="button" data-tip-title="Language" data-tip="Switch the interface language. Keel on eesti keeles.">EN</button>
+    <button class="btn sm lang" data-i18n-tip="langTip" data-lang="et" type="button" data-tip-title="Keel" data-tip="Vaheta liidese keelt.">ET</button>
+  </div>
+
+  <div class="status">
+    <span id="midiState" class="led" data-tip-title="MIDI" data-tip="Web MIDI input status. Notes play the selected track, CC1 is the mod wheel, pitch bend is ±2 semitones." data-i18n-tip="midiTip">MIDI &mdash;</span>
+    <span id="voiceCount" class="voices" data-tip-title="Active voices" data-tip="Notes currently sounding across every track." data-i18n-tip="voicesTip">0 voices</span>
+    <button id="btnPanic" class="btn danger" type="button" data-tip-title="Panic" data-tip="Silence every sounding voice immediately." data-i18n="panic" data-i18n-tip="btnPanicTip">PANIC</button>
+  </div>
+</header>
+
+<!-- ------------------------------------------------------------ transport -->
+<div id="transportBar" class="bar">
+  <button id="btnPlay" class="btn play" type="button" data-tip-title="Play / Stop" data-tip="Start or stop the loop. Notes already scheduled keep ringing for their release." data-i18n-title="playTip">&#9654;</button>
+  <button id="btnRec" class="btn rec" type="button" data-tip-title="Record" data-tip="While playing, notes you hit on the keyboard or MIDI are written into the selected track at the playhead." data-i18n-title="record" data-i18n-tip="btnRecTip">&#9679;</button>
+  <span id="stepReadout" class="readout" data-tip-title="Playhead" data-tip="Current position, shown as bar:beat within the loop." data-i18n-tip="stepReadoutTip">001:1</span>
+
+  <label class="field" data-i18n-tip="bpmTip" data-tip-title="Tempo" data-tip="Speed in beats per minute. Takes effect immediately, even while playing."><span data-i18n="bpm">BPM</span> <input id="bpm" class="num" type="number" min="40" max="240" step="1" value="120" /></label>
+  <label class="field" data-i18n-tip="swingTip" data-tip-title="Swing" data-tip="Pushes every second 16th note late, for a shuffle feel. 0 is perfectly even."><span data-i18n="swing">Swing</span> <input id="swing" class="range" type="range" min="0" max="0.7" step="0.01" value="0" /></label>
+  <label class="field" data-i18n-tip="barsTip" data-tip-title="Loop length" data-tip="How many bars the loop runs before repeating. One bar is 16 steps."><span data-i18n="bars">Bars</span>
+    <select id="bars" class="select sm">
+      <option value="1">1</option>
+      <option value="2">2</option>
+      <option value="4" selected>4</option>
+      <option value="8">8</option>
+    </select>
+  </label>
+  <div class="field keyfield" data-i18n-tip="keyTip" data-tip-title="Key / scale" data-tip="Lock notes to a key. Scale rows are shaded on the roll; with Snap on, anything you draw or play is pulled to the nearest note in the scale.">
+    <span data-i18n="key">Key</span>
+    <select id="scaleRoot" class="select sm" aria-label="Scale root"></select>
+    <select id="scaleType" class="select sm" aria-label="Scale"></select>
+    <label class="chk"><input type="checkbox" id="scaleSnap" /> <span data-i18n="snap">snap</span></label>
+  </div>
+  <label class="field" data-i18n-tip="masterTip" data-tip-title="Master volume" data-tip="Song output level, after every track fader. Also what the WAV export uses."><span data-i18n="master">Master</span> <input id="masterVol" class="range" type="range" min="0" max="1" step="0.01" value="0.85" /></label>
+
+  <span class="spacer"></span>
+
+
+  <button id="btnHelp" class="btn sm" type="button" aria-label="Shortcuts"
+    data-tip-title="Shortcuts"
+    data-tip="Piano roll: click to add a note · drag its right edge to resize · drag the body to move · alt-click or right-click to delete · Delete removes the hovered note
+Knobs: drag to change · shift-drag is fine · wheel nudges · double-click resets
+Play: a w s e d f t g y h u j k · space holds sustain
+Mouse: drag across the keyboard for glissando · MIDI in plays the selected track
+Project: Ctrl/Cmd+S saves · Esc closes dialogs" data-i18n-title="shortcuts" data-i18n-tip="helpChipTip">?</button>
+
+  <button id="btnAddTrack" class="btn" type="button" data-tip-title="Add track" data-tip="Create another track with its own patch, so parts can be layered." data-i18n="addTrack" data-i18n-tip="btnAddTrackTip">+ Track</button>
+  <label class="field"><span data-i18n="zoom">Zoom</span>
+    <button id="zoomOut" class="btn sm" type="button" data-tip-title="Zoom out" data-tip="Make the piano roll steps narrower." data-i18n-title="zoomOut" data-i18n-tip="zoomOutTip">&minus;</button>
+    <button id="zoomIn" class="btn sm" type="button" data-tip-title="Zoom in" data-tip="Make the piano roll steps wider, for precise editing." data-i18n-title="zoomIn" data-i18n-tip="zoomInTip">+</button>
+  </label>
+</div>
+
+<!-- --------------------------------------------------------- patch editor -->
+<div id="patchBar" class="bar">
+  <input id="patchName" class="patch-name" type="text" value="Init" spellcheck="false" aria-label="Patch name" data-tip-title="Patch name" data-tip="Name of the sound on the selected track. Save it to reuse it on other tracks."  data-i18n-tip="patchNameTip"/>
+  <span id="patchTrack" class="readout track-readout" data-tip-title="Editing" data-tip="Which track these controls are editing. Select a different track in the Compose tab." data-i18n-tip="patchTrackTip">editing: &mdash;</span>
+  <button id="btnSave" class="btn" type="button" data-tip-title="Save patch" data-tip="Save this sound to the patch bank, so other tracks can load it." data-i18n="save" data-i18n-tip="btnSaveTip">Save</button>
+  <button id="btnSaveAs" class="btn" type="button" data-tip-title="Save patch as" data-tip="Save this sound under a new name." data-i18n="saveAs" data-i18n-tip="btnSaveAsTip2">Save&nbsp;As</button>
+  <select id="presetSelect" class="select" aria-label="Presets" data-tip-title="Patch bank" data-tip="Load a factory or saved patch onto the selected track. Its notes are untouched." data-i18n-tip="bankTip"></select>
+  <button id="btnDelete" class="btn danger" type="button" data-tip-title="Delete patch" data-tip="Remove the saved patch with this name from the bank." data-i18n="del" data-i18n-tip="btnDeleteTip">Del</button>
+
+  <div class="ab">
+    <span class="ab-label">A/B</span>
+    <button class="btn slot" data-i18n-tip="slotTip" data-slot="A" type="button" data-tip-title="Slot A" data-tip="Compare slot: click to recall, Store to capture the sound you are hearing now.">A</button>
+    <button class="btn slot" data-i18n-tip="slotTip" data-slot="B" type="button" data-tip-title="Slot B" data-tip="Compare slot: click to recall, Store to capture the sound you are hearing now.">B</button>
+    <button class="btn" id="btnStore" type="button" data-tip-title="Store to slot" data-tip="Capture the current sound into the active A/B slot, so you can flip back to it." data-i18n="store" data-i18n-tip="storeTip">Store</button>
+  </div>
+
+  <button id="btnRandom" class="btn" type="button" data-tip-title="Randomise" data-tip="Generate a random patch within musical bounds. A fast way to find something new." data-i18n="random" data-i18n-tip="btnRandomTip">Random</button>
+  <button id="btnInit" class="btn" type="button" data-tip-title="Init patch" data-tip="Reset this track's patch to the neutral starting sound." data-i18n="init" data-i18n-tip="btnInitTip">Init</button>
+  <button id="btnExport" class="btn" type="button" data-tip-title="Export patch" data-tip="Download this patch on its own as a .synthlab.json file." data-i18n="export" data-i18n-tip="btnExportTip">Export</button>
+  <button id="btnImport" class="btn" type="button" data-tip-title="Import patch" data-tip="Load a patch file onto the selected track. A file holding several patches adds them all to the bank." data-i18n="import" data-i18n-tip="btnImportTip">Import</button>
+  <input type="file" id="fileInput" accept="application/json,.json" hidden />
+</div>
+
+<!-- --------------------------------------------------------- compose view -->
+<section id="composeView" class="view">
+  <div class="composer">
+    <aside class="tracks">
+      <div class="tracks-title"><span data-i18n="tracks">Tracks</span>
+        <span class="tracks-acts">
+          <button id="btnShowAll" class="btn sm" data-i18n="showAll" type="button" data-tip-title="Show all" data-tip="Draw every track's notes on the roll at once." data-i18n-tip="showAllTip">All</button>
+          <button id="btnShowSel" class="btn sm" data-i18n="showSel" type="button" data-tip-title="Show selected only" data-tip="Hide every track except the one you are editing." data-i18n-tip="showSelTip">Sel</button>
+        </span>
+      </div>
+      <div id="trackList" class="track-list"></div>
+      <div class="tracks-hint" data-i18n="tracksHint"></div>
+    </aside>
+    <div class="roll-col">
+      <div class="editbar">
+        <div class="modes">
+          <button class="btn sm mode" data-i18n-tip="drawTip" data-mode="draw" data-i18n="draw" type="button" data-tip-title="Draw mode" data-tip="Pencil: click empty space to write a note, drag to set its length.">Draw</button>
+          <button class="btn sm mode" data-i18n-tip="selectTip" data-mode="select" data-i18n="select" type="button" data-tip-title="Select mode" data-tip="Drag to select, click empty space to move the paste cursor. Click Draw again to write notes.">Select</button>
+        </div>
+        <span class="sep"></span>
+        <button id="btnSelAll" class="btn sm" type="button" data-tip-title="Select all" data-tip="Select every note on this track, so you can copy or move the whole part. Shortcut: Ctrl+A." data-i18n="selAll">Select all</button>
+        <button id="btnCopy" class="btn sm" type="button" data-tip-title="Copy" data-tip="Copy the selected notes. Shortcut: Ctrl+C." data-i18n="copy">Copy</button>
+        <button id="btnCut" class="btn sm" type="button" data-tip-title="Cut" data-tip="Copy the selection and remove it. Shortcut: Ctrl+X." data-i18n="cut">Cut</button>
+        <button id="btnPaste" class="btn sm accent" type="button" data-tip-title="Paste" data-tip="Drop the copied notes at the selection, at the playhead, or else right after what you copied. Shortcut: Ctrl+V." data-i18n="paste">Paste</button>
+        <button id="btnDup" class="btn sm" type="button" data-tip-title="Duplicate" data-tip="Copy the selection and place the copy straight after it. Shortcut: Ctrl+D." data-i18n="duplicate">Duplicate</button>
+        <button id="btnDelSel" class="btn sm danger" type="button" data-tip-title="Delete" data-tip="Delete the selected notes. Shortcut: Delete." data-i18n="delete">Delete</button>
+        <button id="btnUndo" class="btn sm" type="button" data-tip-title="Undo" data-tip="Undo the last note edit: a paste, delete, move, resize or transpose. Shortcut: Ctrl+Z." data-i18n="undo" data-i18n-tip="btnUndoTip">&#8630; Undo</button>
+        <button id="btnRedo" class="btn sm" type="button" data-tip-title="Redo" data-tip="Redo what you just undid. Shortcut: Ctrl+Shift+Z or Ctrl+Y." data-i18n="redo" data-i18n-tip="btnRedoTip">&#8631; Redo</button>
+        <button id="btnClear" class="btn sm" type="button" data-tip-title="Clear / finish" data-tip="Finish the copy step: clears the selection, the amber paste cursor and the copied notes, then returns to Draw mode. Shortcut: Esc." data-i18n="clear" data-i18n-tip="btnClearTip">Clear</button>
+        <span class="sep"></span>
+        <button id="btnSemiUp" class="btn sm" type="button" data-tip-title="Up a semitone" data-tip="Transpose the selection up one semitone. Shortcut: Alt+&#8593;." data-i18n-title="semiUp">&#9650;1</button>
+        <button id="btnSemiDn" class="btn sm" type="button" data-tip-title="Down a semitone" data-tip="Transpose the selection down one semitone. Shortcut: Alt+&#8595;." data-i18n-title="semiDown">&#9660;1</button>
+        <button id="btnOctUp" class="btn sm" type="button" data-tip-title="Up an octave" data-tip="Transpose the selection up twelve semitones." data-i18n-title="octUp">&#9650;12</button>
+        <button id="btnOctDn" class="btn sm" type="button" data-tip-title="Down an octave" data-tip="Transpose the selection down twelve semitones." data-i18n-title="octDown">&#9660;12</button>
+        <span class="spacer"></span>
+        <span id="selReadout" class="readout sel" data-tip-title="Selection" data-tip="Notes currently selected. Drag with shift to select, or right-click the roll for the edit menu.">no selection</span>
+      </div>
+      <div id="rollWrap" class="roll-wrap">
+        <canvas id="roll" tabindex="0"></canvas>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ----------------------------------------------------------- patch view -->
+<section id="patchView" class="view">
+  <main id="rack" class="rack"></main>
+</section>
+
+
+<!-- ------------------------------------------------------------ help view -->
+<section id="helpView" class="view help">
+  <div class="help-inner">
+
+    <header class="help-head">
+      <h1>How to use SYNTH LAB</h1>
+      <p>A patch designer and a multitrack loop studio in one page. Everything runs in the browser &mdash; no install, no server, your work is stored locally.</p>
+    </header>
+
+    <div id="helpBody" class="help-grid"></div>
+  </div>
+</section>
+
+<footer class="keysection">
+  <div class="keybar">
+    <div class="octave">
+      <button class="btn oct" data-dir="-1" type="button" data-tip-title="Octave down" data-tip="Shift the on-screen and computer keyboard down an octave.">&#9664;</button>
+      <span id="octLabel" class="oct-label" data-tip-title="Keyboard range" data-tip="Lowest note of the on-screen keyboard.">C3</span>
+      <button class="btn oct" data-dir="1" type="button" data-tip-title="Octave up" data-tip="Shift the on-screen and computer keyboard up an octave.">&#9654;</button>
+    </div>
+    <label class="sustain" data-tip-title="Sustain" data-tip="Held notes keep ringing after you let go, like a piano pedal. Hold the space bar for the same effect."><input type="checkbox" id="sustain" /> Sustain <kbd>space</kbd></label>
+    <div class="hint">play <kbd>a</kbd><kbd>w</kbd><kbd>s</kbd><kbd>e</kbd><kbd>d</kbd><kbd>f</kbd><kbd>t</kbd><kbd>g</kbd><kbd>y</kbd><kbd>h</kbd><kbd>u</kbd><kbd>j</kbd><kbd>k</kbd> &middot; roll: click to add, drag note edge to resize, alt/right-click to delete</div>
+  </div>
+  <div id="keyboard" class="keyboard"></div>
+</footer>
+
+<!-- --------------------------------------------------------- projects -->
+<div id="projectDialog" class="modal" hidden>
+  <div class="modal-card">
+    <header class="modal-head">
+      <h2 data-i18n="projectsTitle">Projects</h2>
+      <button id="pdClose" class="btn sm" type="button" data-tip-title="Close" data-tip="Close this dialog. Escape does the same." data-i18n-title="close">&#10005;</button>
+    </header>
+
+    <section class="modal-new">
+      <input id="pdNewName" class="patch-name" type="text" data-i18n-ph="newNamePh" placeholder="New project name" spellcheck="false" data-tip-title="New project" data-tip="Name for the project you are about to create."  data-i18n-tip="pdNewNameTip"/>
+      <select id="pdTemplate" class="select sm" data-tip-title="Template" data-tip="What the new project starts with: one empty track, no tracks at all, or a copy of what is open." data-i18n-tip="pdTemplateTip">
+        <option value="blank" data-i18n="tplBlank">Blank — 1 empty track</option>
+        <option value="empty" data-i18n="tplEmpty">Empty — no tracks</option>
+        <option value="copy" data-i18n="tplCopy">Copy of current project</option>
+      </select>
+      <button id="pdCreate" class="btn accent" type="button" data-tip-title="Create" data-tip="Create the project and start editing it." data-i18n="create" data-i18n-tip="pdCreateTip">Create</button>
+    </section>
+
+    <section class="modal-body">
+      <div class="pd-group">Saved <span id="pdSavedCount" class="pd-count"></span></div>
+      <div id="pdSaved" class="pd-list"></div>
+      <div class="pd-group">Examples</div>
+      <div id="pdExamples" class="pd-list"></div>
+    </section>
+
+    <footer class="modal-foot">
+      <button id="pdImport" class="btn" type="button" data-tip-title="Import" data-tip="Load a project from a .song.json file." data-i18n="importJsonBtn" data-i18n-tip="btnSongImportTip">Import JSON&hellip;</button>
+      <span id="pdHint" class="pd-hint"></span>
+    </footer>
+  </div>
+</div>
+
+<div id="rollMenu" class="menu" hidden>
+  <button class="menu-item" data-act="copy" type="button" data-i18n="copy">Copy<em>Ctrl+C</em></button>
+  <button class="menu-item" data-act="cut" type="button" data-i18n="cut">Cut<em>Ctrl+X</em></button>
+  <button class="menu-item" data-act="pastehere" type="button" data-i18n="pasteHere">Paste here<em></em></button>
+  <button class="menu-item" data-act="paste" type="button" data-i18n="paste">Paste<em>Ctrl+V</em></button>
+  <button class="menu-item" data-act="dup" type="button" data-i18n="duplicate">Duplicate<em>Ctrl+D</em></button>
+  <button class="menu-item" data-act="all" type="button" data-i18n="selAll">Select all<em>Ctrl+A</em></button>
+  <button class="menu-item danger" data-act="del" type="button" data-i18n="delete">Delete<em>Del</em></button>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="synth.js"></script>
+<script src="presets.js"></script>
+<script src="i18n.js"></script>
+<script src="transport.js"></script>
+<script src="pianoroll.js"></script>
+<script src="examples.js"></script>
+<script src="midi.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

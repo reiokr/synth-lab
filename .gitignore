@@ -1,0 +1,9 @@
+# Node (MCP serveri sõltuvused)
+node_modules/
+
+# Renderdatud heli (suured binaarfailid)
+wav/*.wav
+
+# Süsteem
+.DS_Store
+Thumbs.db

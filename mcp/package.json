@@ -1,0 +1,14 @@
+{
+  "name": "synthlab-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MCP server for SYNTH LAB — edit song.json projects, export MIDI and render WAV through the real Web Audio engine in headless Chromium",
+  "main": "server.js",
+  "bin": { "synthlab-mcp": "./server.js" },
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "playwright-core": "^1.61.1"
+  }
+}
