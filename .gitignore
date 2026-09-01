@@ -1,8 +1,15 @@
 # Node (MCP serveri sõltuvused)
 node_modules/
+json/
+midi/
+wav/
 
 # Renderdatud heli (suured binaarfailid)
 wav/*.wav
+
+# Helifailid, mida ei ole vaja versioonihalduses hoida
+json/*.json
+mid/*.mid
 
 # Süsteem
 .DS_Store
