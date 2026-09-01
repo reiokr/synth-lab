@@ -32,6 +32,7 @@
     <button id="btnSongJson" class="btn" type="button" data-tip-title="Export JSON" data-tip="Save the project (notes, patches and mixer) as a .song.json file you can re-import or share." data-i18n="exportJson" data-i18n-tip="btnSongJsonTip">JSON</button>
     <button id="btnSongMidi" class="btn" type="button" data-tip-title="Export MIDI" data-tip="Write a standard .mid file: one MIDI track per project track, with tempo, time signature and track names. Drag it into any DAW." data-i18n="exportMidi" data-i18n-tip="btnSongMidiTip">MIDI</button>
     <button id="btnSongImport" class="btn" type="button" data-tip-title="Import JSON" data-tip="Load a project from a .song.json file." data-i18n="import" data-i18n-tip="btnSongImportTip">Import</button>
+    <button id="btnFolder" class="btn" type="button" data-tip-title="Link folder" data-tip="Link a folder on disk. Saving then writes a .song.json file there automatically, and the songs in it show up under Open." data-i18n="linkFolder" data-i18n-tip="btnFolderTip">Folder</button>
     <input type="file" id="songFileInput" accept="application/json,.json" hidden />
   </div>
 
@@ -61,6 +62,9 @@
       <option value="2">2</option>
       <option value="4" selected>4</option>
       <option value="8">8</option>
+      <option value="16">16</option>
+      <option value="32">32</option>
+      <option value="64">64</option>
     </select>
   </label>
   <div class="field keyfield" data-i18n-tip="keyTip" data-tip-title="Key / scale" data-tip="Lock notes to a key. Scale rows are shaded on the roll; with Snap on, anything you draw or play is pulled to the nearest note in the scale.">
@@ -209,6 +213,8 @@ Project: Ctrl/Cmd+S saves · Esc closes dialogs" data-i18n-title="shortcuts" dat
     <section class="modal-body">
       <div class="pd-group">Saved <span id="pdSavedCount" class="pd-count"></span></div>
       <div id="pdSaved" class="pd-list"></div>
+      <div class="pd-group" id="pdFolderGroup" hidden>Folder <span id="pdFolderCount" class="pd-count"></span></div>
+      <div id="pdFolder" class="pd-list"></div>
       <div class="pd-group">Examples</div>
       <div id="pdExamples" class="pd-list"></div>
     </section>
@@ -239,6 +245,7 @@ Project: Ctrl/Cmd+S saves · Esc closes dialogs" data-i18n-title="shortcuts" dat
 <script src="pianoroll.js"></script>
 <script src="examples.js"></script>
 <script src="midi.js"></script>
+<script src="folder.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

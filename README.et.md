@@ -28,7 +28,7 @@ teistes Web Audio't toetavates brauserites.
 
 **Komponeerija**
 
-- mitu rada, pianoroll, 1/16 samm ruudustik, 1–8 takti pikkune loop
+- mitu rada, pianoroll, 1/16 samm ruudustik, 1–64 takti pikkune loop (120 bpm juures u 2 minutit)
 - **16 demot**: Neon Drive, Deep Circuit, Glass Cathedral, Acid Rain, Sunset Boulevard,
   Cathedral Dust, Funk Machine, Pixel Garden, Steel Rain, Lullaby Box, Midnight Groove,
   Hyper Rush, Prelude in Amber, Orbital Pulse, Bossa Sunrise, Epic Dawn

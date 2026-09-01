@@ -29,7 +29,7 @@ browser that supports Web Audio.
 
 **Composer**
 
-- multiple tracks, piano roll, 1/16 step grid, 1–8 bar loop
+- multiple tracks, piano roll, 1/16 step grid, 1–64 bar loop (about two minutes at 120 bpm)
 - **16 demos**: Neon Drive, Deep Circuit, Glass Cathedral, Acid Rain,
   Sunset Boulevard, Cathedral Dust, Funk Machine, Pixel Garden, Steel Rain,
   Lullaby Box, Midnight Groove, Hyper Rush, Prelude in Amber, Orbital Pulse,

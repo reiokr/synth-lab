@@ -187,7 +187,7 @@
     s.scaleRoot = clamp(Math.round(Number(raw.scaleRoot) || 0), 0, 11);
     s.scaleType = (SL.SCALES && SL.SCALES[raw.scaleType]) ? raw.scaleType : 'chromatic';
     s.scaleSnap = !!raw.scaleSnap;
-    s.bars = [1, 2, 4, 8].indexOf(Number(raw.bars)) >= 0 ? Number(raw.bars) : 2;
+    s.bars = [1, 2, 4, 8, 16, 32, 64].indexOf(Number(raw.bars)) >= 0 ? Number(raw.bars) : 2;
     s.masterVolume = clamp(raw.masterVolume === undefined ? 0.85 : Number(raw.masterVolume), 0, 1);
     s.tracks = (Array.isArray(raw.tracks) ? raw.tracks : []).map((t, ti) => ({
       name: String((t && t.name) || 'Track'),
@@ -753,6 +753,7 @@
     updatePatchBar();
     updateSelReadout();
     updateVoiceCount();
+    updateFolderButton();
   }
 
   function refreshRackText() {
@@ -1955,12 +1956,39 @@
     } catch (e3) { savedSongs = []; }
   }
 
-  let sessionTimer = null;
+  /* Autosave: every ten seconds the open project is written to local storage,
+     but only when something actually happened during those ten seconds. No
+     activity, no write — so an untouched tab does not keep touching storage,
+     and a burst of edits still costs a single write. Leaving the page flushes
+     it straight away, which is what keeps an accidental close harmless. */
+  const AUTOSAVE_MS = 10000;
+  let sessionActivity = false;
+  let sessionWritten = '';
+
+  function flushSession() {
+    sessionActivity = false;
+    try {
+      const json = JSON.stringify(cleanSong(song));
+      if (json === sessionWritten) return;
+      localStorage.setItem(LS_SESSION, json);
+      sessionWritten = json;
+    } catch (e) { /* quota */ }
+  }
+
+  /* Asking for a save only raises the flag; the loop below does the writing. */
   function saveSession() {
-    clearTimeout(sessionTimer);
-    sessionTimer = setTimeout(() => {
-      try { localStorage.setItem(LS_SESSION, JSON.stringify(cleanSong(song))); } catch (e) { /* quota */ }
-    }, 400);
+    sessionActivity = true;
+  }
+
+  function startAutosave() {
+    ['pointerdown', 'pointermove', 'keydown', 'input', 'change', 'wheel', 'touchstart'].forEach((ev) => {
+      window.addEventListener(ev, () => { sessionActivity = true; }, { passive: true });
+    });
+    setInterval(() => { if (sessionActivity) flushSession(); }, AUTOSAVE_MS);
+    window.addEventListener('pagehide', flushSession);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) flushSession();
+    });
   }
 
   const saveUserPresets = () => {
@@ -2075,7 +2103,8 @@
     renderProjectDialog();
     setDirty(false);
     saveSession();
-    toast('saved project "' + name + '"');
+    toast(t('savedProject') + name + '"');
+    saveToFolder();
     return true;
   }
 
@@ -2225,10 +2254,88 @@
     return row;
   }
 
+  /* ------------------------------------------- a folder linked on the disk */
+  let folderFiles = [];
+
+  function updateFolderButton() {
+    const b = $('#btnFolder');
+    if (!b) return;
+    if (!SL.Folder || !SL.Folder.supported()) {
+      b.disabled = true;
+      b.dataset.tip = t('folderUnsupported');
+      return;
+    }
+    const on = SL.Folder.connected();
+    b.classList.toggle('accent', on);
+    b.textContent = on ? SL.Folder.folderName() : t('linkFolder', 'Folder');
+    b.dataset.tip = on
+      ? 'Linked: ' + SL.Folder.folderName() + ' — saving writes a .song.json file here. Click to unlink.'
+      : t('btnFolderTip');
+  }
+
+  /* List the .song.json files in the linked folder under Open. */
+  function refreshFolder() {
+    updateFolderButton();
+    const group = $('#pdFolderGroup');
+    const box = $('#pdFolder');
+    if (!group || !box) return;
+    if (!SL.Folder || !SL.Folder.connected()) {
+      group.hidden = true;
+      box.innerHTML = '';
+      folderFiles = [];
+      return;
+    }
+    group.hidden = false;
+    SL.Folder.list().then((files) => {
+      folderFiles = files;
+      const count = $('#pdFolderCount');
+      if (count) count.textContent = files.length ? '(' + files.length + ')' : '';
+      box.innerHTML = '';
+      files.forEach((f) => {
+        const row = projectRow({ name: f.name, bpm: 0, bars: 0, tracks: [] }, [
+          { label: 'Open', tip: 'Load this song from the linked folder.', run: () => openFolderSong(f.file) },
+          { label: 'Delete', danger: true, tip: 'Delete this file from the linked folder.', run: () => deleteFolderSong(f) }
+        ]);
+        const meta = row.querySelector('.pd-meta');
+        if (meta) meta.textContent = f.file + ' · ' + Math.max(1, Math.round(f.size / 1024)) + ' kB';
+        box.appendChild(row);
+      });
+    }).catch(() => { group.hidden = true; });
+  }
+
+  function openFolderSong(file) {
+    if (!SL.Folder || !SL.Folder.connected()) return;
+    SL.Folder.read(file).then((data) => {
+      if (!guardUnsaved('open "' + (data && data.name ? data.name : file) + '"')) return;
+      loadSong(data, { announce: true });
+      setDirty(false);
+      setView('compose');
+      closeProjectDialog();
+    }).catch(() => toast(t('importFailed', 'import failed: bad JSON')));
+  }
+
+  function deleteFolderSong(f) {
+    if (!window.confirm(t('folderDeleteAsk') + ' (' + f.file + ')')) return;
+    SL.Folder.remove(f.file).then(() => {
+      toast(t('folderDeleted') + f.name);
+      refreshFolder();
+    }).catch((e) => toast(t('folderWriteFailed') + (e && e.message ? e.message : e)));
+  }
+
+  /* Saving a project also writes it into the linked folder, so the file the
+     MCP server works from is always the one on screen. */
+  function saveToFolder() {
+    if (!SL.Folder || !SL.Folder.connected()) return;
+    SL.Folder.write(cleanSong(song)).then((file) => {
+      toast(t('folderSaved') + file);
+    }).catch((e) => toast(t('folderWriteFailed') + (e && e.message ? e.message : e)));
+  }
+
   function renderProjectDialog() {
     const saved = $('#pdSaved');
     const ex = $('#pdExamples');
     saved.innerHTML = '';
+    refreshFolder();
     ex.innerHTML = '';
     $('#pdSavedCount').textContent = savedSongs.length ? '(' + savedSongs.length + ')' : '';
 
@@ -2368,6 +2475,22 @@
     $('#btnNew').addEventListener('click', newProject);
     $('#btnOpen').addEventListener('click', openProjectDialog);
     $('#btnSongSave').addEventListener('click', saveCurrentSong);
+    $('#btnFolder').addEventListener('click', () => {
+      if (!SL.Folder) return;
+      if (!SL.Folder.supported()) { toast(t('folderUnsupported')); return; }
+      if (SL.Folder.connected()) {
+        if (!window.confirm(t('folderUnlinkAsk'))) return;
+        SL.Folder.disconnect().then(() => {
+          toast(t('folderUnlinked'));
+          refreshFolder();
+        });
+        return;
+      }
+      SL.Folder.connect().then(() => {
+        toast(t('folderLinked') + SL.Folder.folderName());
+        refreshFolder();
+      }).catch(() => toast(t('folderDenied')));
+    });
     $('#btnSongSaveAs').addEventListener('click', () => saveSongAs(true));
     $('#pdClose').addEventListener('click', closeProjectDialog);
     $('#pdCreate').addEventListener('click', () => {
@@ -2579,6 +2702,14 @@
     setDirty(!!session && findSavedSong(song.name) < 0);
     applyLang(startLang);
     updatePlayButton();
+    startAutosave();
+    updateFolderButton();
+    if (SL.Folder && SL.Folder.supported()) {
+      SL.Folder.restore().then((ok) => {
+        updateFolderButton();
+        if (ok) toast(t('folderLinked') + SL.Folder.folderName());
+      });
+    }
   }
 
   boot();

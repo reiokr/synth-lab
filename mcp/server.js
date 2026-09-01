@@ -38,7 +38,7 @@ const MIDI_DIR = process.env.SYNTHLAB_MIDI_DIR
 const WAV_DIR = process.env.SYNTHLAB_WAV_DIR
   ? path.resolve(process.env.SYNTHLAB_WAV_DIR)
   : path.join(PROJECT_DIR, 'wav');
-[SONGS_DIR, MIDI_DIR, WAV_DIR].forEach((d) => fs.mkdirSync(d, { recursive: true }));
+for (const d of [SONGS_DIR, MIDI_DIR, WAV_DIR]) fs.mkdirSync(d, { recursive: true });
 
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 const log = (...a) => console.error('[synthlab]', ...a);
@@ -54,7 +54,7 @@ function normalizeSong(raw) {
   const s = Object.assign(base, raw || {});
   s.name = (raw && raw.name) || base.name;
   s.bpm = clamp(Number(s.bpm) || 120, 40, 240);
-  s.bars = [1, 2, 4, 8].indexOf(Number(s.bars)) >= 0 ? Number(s.bars) : 2;
+  s.bars = [1, 2, 4, 8, 16, 32, 64].indexOf(Number(s.bars)) >= 0 ? Number(s.bars) : 2;
   s.swing = clamp(Number(s.swing) || 0, 0, 0.7);
   s.scaleRoot = clamp(Math.round(Number(s.scaleRoot) || 0), 0, 11);
   s.scaleType = SL.SCALES[s.scaleType] ? s.scaleType : 'chromatic';
@@ -187,7 +187,7 @@ const TOOLS = [
     type: 'object', properties: {
       song: { type: 'string', description: 'Name for the new song' },
       bpm: { type: 'number' },
-      bars: { type: 'number', enum: [1, 2, 4, 8] },
+      bars: { type: 'number', enum: [1, 2, 4, 8, 16, 32, 64], description: 'Loop length. One bar is 16 steps; 64 bars is roughly two minutes at 120 bpm.' },
       swing: { type: 'number' },
       scaleRoot: { type: 'number', description: '0=C .. 11=B' },
       scaleType: { type: 'string' },

@@ -74,6 +74,7 @@
     saveAs: { en: 'Save As', et: 'Salvesta kui' },
     exportWav: { en: '▶ WAV', et: '▶ WAV' },
     exportJson: { en: 'JSON', et: 'JSON' },
+    linkFolder: { en: 'Folder', et: 'Kaust' },
     exportMidi: { en: 'MIDI', et: 'MIDI' },
     import: { en: 'Import', et: 'Too sisse' },
     panic: { en: 'PANIC', et: 'PANIC' },
@@ -221,7 +222,9 @@
     patchNameTip: { en: 'Name of the sound on the selected track. Save it to reuse it on other tracks.', et: 'Valitud raja heli nimi. Salvesta see, et kasutada teistel radadel.' },
     bankTip: { en: 'Load a factory or saved patch onto the selected track. Its notes are untouched.', et: 'Laadi tehase või salvestatud heli valitud rajale. Noodid jäävad puutumata.' },
     storeTip: { en: 'Capture the current sound into the active A/B slot, so you can flip back to it.', et: 'Salvesta praegune kõla aktiivsesse A/B pessa, et saaksid selle juurde tagasi pöörduda.' },
-    projectNameTip: { en: 'Name of the project you are editing. An amber dot means it has unsaved changes.', et: 'Muudetava projekti nimi. Merevaigu täpp tähendab salvestamata muudatusi.' }
+    projectNameTip: { en: 'Name of the project you are editing. An amber dot means it has unsaved changes.', et: 'Muudetava projekti nimi. Merevaigu täpp tähendab salvestamata muudatusi.' },
+    btnFolderTip: { en: 'Link a folder on disk. Saving then writes a .song.json file there by itself, and the songs in it appear under Open. Chromium only — Firefox keeps using the JSON button.', et: 'Ühenda kettal olev kaust. Salvestamine kirjutab siis sinna ise .song.json faili ja kaustas olevad lood ilmuvad Avamise alla. Ainult Chromiumis — Firefox kasutab edasi JSON nuppu.' },
+    pdFolderTip: { en: 'Songs found in the linked folder. Saving a project writes it here, so the app and the MCP server work from the same files.', et: 'Ühendatud kaustast leitud lood. Projekti salvestamine kirjutab siia, nii et rakendus ja MCP server töötavad samade failidega.' }
   };
 
   /* -------------------------------------------------------------- messages */
@@ -231,6 +234,16 @@
     newProject: { en: 'new project "', et: 'uus projekt: "' },
     exportedWav: { en: 'exported ', et: 'eksporditud ' },
     exportedJson: { en: 'exported song JSON', et: 'laulu JSON eksporditud' },
+    folderLinked: { en: 'folder linked: ', et: 'kaust ühendatud: ' },
+    folderUnlinked: { en: 'folder link removed — saving goes to browser storage again', et: 'kausta ühendus eemaldatud — salvestamine läheb taas brauseri hoiustusse' },
+    folderSaved: { en: 'saved to file ', et: 'salvestatud faili ' },
+    folderDenied: { en: 'folder access was not granted', et: 'kaustale juurdepääsu ei antud' },
+    folderUnsupported: { en: 'this browser cannot link a folder — use the JSON button to save a file', et: 'see brauser ei saa kausta ühendada — faili salvestamiseks kasuta JSON nuppu' },
+    folderWriteFailed: { en: 'could not write the file: ', et: 'faili kirjutamine ebaõnnestus: ' },
+    folderDeleted: { en: 'deleted from folder: ', et: 'kaustast kustutatud: ' },
+    folderUnlinkAsk: { en: 'Remove the link to this folder? Saving goes back to browser storage only.', et: 'Kas eemaldada ühendus selle kaustaga? Salvestamine läheb tagasi ainult brauseri hoiustusse.' },
+    folderDeleteAsk: { en: 'Delete this file from disk?', et: 'Kas kustutada see fail kettalt?' },
+    folderStart: { en: 'link a folder (Folder button) to open the songs in it', et: 'kaustas olevate lugude avamiseks ühenda kaust (Kaust nupp)' },
     exportedMidi: { en: 'exported MIDI — ', et: 'MIDI eksporditud — ' },
     tracksWord: { en: ' tracks, ', et: ' rada, ' },
     bpmWord: { en: ' bpm', et: ' bpm' },

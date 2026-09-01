@@ -393,9 +393,36 @@
     tmp.ctx = octx;
     tmp.build();
     song.tracks.forEach(function (t) { indexTrack(song, t); });
-    for (let s = 0; s < total; s++) tmp.scheduleStep(s, s * sd);
 
-    return octx.startRendering();
+    /* A long song holds every note of the whole loop at once if they are all
+       scheduled up front, and past roughly a thousand notes Chromium comes
+       back with silence through the middle of the render. So the steps are
+       scheduled in batches instead: start rendering, suspend a little before
+       the next batch is due, schedule it, resume. Same context throughout,
+       so delay and reverb tails still run across the joins. */
+    const BATCH = 32;
+    let step = 0;
+    const scheduleBatch = function () {
+      const end = Math.min(step + BATCH, total);
+      for (; step < end; step++) tmp.scheduleStep(step, step * sd);
+    };
+
+    scheduleBatch();
+    if (step >= total || !octx.suspend) return octx.startRendering();
+
+    const rendering = octx.startRendering();
+    return (async function () {
+      while (step < total) {
+        try {
+          await octx.suspend(Math.max(0, step * sd - 0.05));
+        } catch (e) {
+          break;
+        }
+        scheduleBatch();
+        octx.resume();
+      }
+      return rendering;
+    })();
   };
 
   function encodeWav(buffer) {

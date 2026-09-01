@@ -90,15 +90,21 @@
 
   PianoRoll.prototype.rows = function () { return this.hi - this.lo + 1; };
 
+  /* A long song makes a very wide canvas: 64 bars at 20 px a step is over
+     20 000 css px, which is past what a browser will allocate at dpr 2. */
+  const MAX_SIDE = 16384;
+
   PianoRoll.prototype.resize = function () {
     const dpr = Math.min(global.devicePixelRatio || 1, 2);
     const w = Math.max(240, totalOf(this.song) * this.stepW);
     const h = this.rows() * this.rowH;
     this.canvas.style.width = w + 'px';
     this.canvas.style.height = h + 'px';
-    this.canvas.width = Math.round(w * dpr);
-    this.canvas.height = Math.round(h * dpr);
-    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    /* keep the backing store inside the limit by scaling the ratio down */
+    const fit = Math.max(0.05, Math.min(dpr, MAX_SIDE / w, MAX_SIDE / h));
+    this.canvas.width = Math.round(w * fit);
+    this.canvas.height = Math.round(h * fit);
+    this.ctx.setTransform(fit, 0, 0, fit, 0, 0);
     this.cssW = w;
     this.cssH = h;
   };
@@ -232,6 +238,13 @@
     const total = totalOf(this.song);
     const rowH = this.rowH, stepW = this.stepW;
 
+    /* Only the part scrolled into view is drawn, so a 64-bar song costs no
+       more to draw than a 4-bar one. */
+    const wrap = this.canvas.parentElement;
+    const viewW = wrap && wrap.clientWidth ? wrap.clientWidth : w;
+    const vx0 = Math.max(0, (wrap ? wrap.scrollLeft || 0 : 0) - stepW * 2);
+    const vx1 = Math.min(w, vx0 + viewW + stepW * 4);
+
     ctx.clearRect(0, 0, w, h);
     ctx.fillStyle = '#0e1218';
     ctx.fillRect(0, 0, w, h);
@@ -251,10 +264,10 @@
         }
       }
       ctx.fillStyle = fill;
-      ctx.fillRect(0, y, w, rowH);
+      ctx.fillRect(vx0, y, vx1 - vx0, rowH);
       if (p % 12 === 0) {
         ctx.fillStyle = 'rgba(255,255,255,0.05)';
-        ctx.fillRect(0, y, w, 1);
+        ctx.fillRect(vx0, y, vx1 - vx0, 1);
         ctx.fillStyle = 'rgba(255,255,255,0.22)';
         ctx.font = '9px ui-monospace, monospace';
         ctx.fillText(NAMES[p % 12] + (Math.floor(p / 12) - 1), 3, y + rowH - 3);
@@ -263,6 +276,7 @@
 
     for (let s = 0; s <= total; s++) {
       const x = Math.round(s * stepW) + 0.5;
+      if (x < vx0 || x > vx1) continue;
       ctx.strokeStyle = s % 16 === 0 ? 'rgba(255,255,255,0.20)'
         : (s % 4 === 0 ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.04)');
       ctx.beginPath();
@@ -300,6 +314,7 @@
         const x = n.step * stepW;
         const y = (this.hi - n.pitch) * rowH;
         const nw = Math.max(4, Math.max(1, n.len) * stepW - 2);
+        if (x + nw < vx0 || x > vx1) continue;
         const nh = rowH - 3;
         ctx.fillStyle = flashing ? '#ffffff' : base;
         ctx.globalAlpha = flashing ? 0.92 : (isSel
