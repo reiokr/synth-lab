@@ -224,6 +224,7 @@
     storeTip: { en: 'Capture the current sound into the active A/B slot, so you can flip back to it.', et: 'Salvesta praegune kõla aktiivsesse A/B pessa, et saaksid selle juurde tagasi pöörduda.' },
     projectNameTip: { en: 'Name of the project you are editing. An amber dot means it has unsaved changes.', et: 'Muudetava projekti nimi. Merevaigu täpp tähendab salvestamata muudatusi.' },
     btnFolderTip: { en: 'Link a folder on disk. Saving then writes a .song.json file there by itself, and the songs in it appear under Open. Chromium only — Firefox keeps using the JSON button.', et: 'Ühenda kettal olev kaust. Salvestamine kirjutab siis sinna ise .song.json faili ja kaustas olevad lood ilmuvad Avamise alla. Ainult Chromiumis — Firefox kasutab edasi JSON nuppu.' },
+    btnFolderServerTip: { en: 'Saving writes .song.json files into the project json/ folder via the local server (node serve.js). Click to pick a folder instead.', et: 'Salvestamine kirjutab .song.json failid projekti json/ kausta kohaliku serveri kaudu (node serve.js). Kliki, et valida hoopis kaust.' },
     pdFolderTip: { en: 'Songs found in the linked folder. Saving a project writes it here, so the app and the MCP server work from the same files.', et: 'Ühendatud kaustast leitud lood. Projekti salvestamine kirjutab siia, nii et rakendus ja MCP server töötavad samade failidega.' }
   };
 
@@ -235,15 +236,18 @@
     exportedWav: { en: 'exported ', et: 'eksporditud ' },
     exportedJson: { en: 'exported song JSON', et: 'laulu JSON eksporditud' },
     folderLinked: { en: 'folder linked: ', et: 'kaust ühendatud: ' },
-    folderUnlinked: { en: 'folder link removed — saving goes to browser storage again', et: 'kausta ühendus eemaldatud — salvestamine läheb taas brauseri hoiustusse' },
+    folderUnlinked: { en: 'folder link removed — saving goes back to the server or browser storage', et: 'kausta ühendus eemaldatud — salvestamine läheb tagasi serverile või brauseri hoiustusse' },
     folderSaved: { en: 'saved to file ', et: 'salvestatud faili ' },
     folderDenied: { en: 'folder access was not granted', et: 'kaustale juurdepääsu ei antud' },
     folderUnsupported: { en: 'this browser cannot link a folder — use the JSON button to save a file', et: 'see brauser ei saa kausta ühendada — faili salvestamiseks kasuta JSON nuppu' },
     folderWriteFailed: { en: 'could not write the file: ', et: 'faili kirjutamine ebaõnnestus: ' },
     folderDeleted: { en: 'deleted from folder: ', et: 'kaustast kustutatud: ' },
     folderUnlinkAsk: { en: 'Remove the link to this folder? Saving goes back to browser storage only.', et: 'Kas eemaldada ühendus selle kaustaga? Salvestamine läheb tagasi ainult brauseri hoiustusse.' },
-    folderDeleteAsk: { en: 'Delete this file from disk?', et: 'Kas kustutada see fail kettalt?' },
+    folderDeleteAsk: { en: 'Delete this file from disk? The saved project is removed too.', et: 'Kas kustutada see fail kettalt? Ka salvestatud projekt eemaldatakse.' },
     folderStart: { en: 'link a folder (Folder button) to open the songs in it', et: 'kaustas olevate lugude avamiseks ühenda kaust (Kaust nupp)' },
+    folderOffer: { en: 'Projects are kept in the browser only. Link a folder — or run "node serve.js" — to save them as .song.json files.', et: 'Projektid jäävad ainult brauserisse. Ühenda kaust — või käivita "node serve.js" — et salvestada need .song.json failidena.' },
+    folderHint: { en: 'saved in the browser — link a Folder (or run "node serve.js") to keep a .song.json file too', et: 'salvestatud brauserisse — ühenda kaust (või käivita "node serve.js"), et hoida ka .song.json faili' },
+    folderServerActive: { en: 'songs are saved as .song.json files via the local server (node serve.js)', et: 'lood salvestatakse .song.json failidena kohaliku serveri kaudu (node serve.js)' },
     exportedMidi: { en: 'exported MIDI — ', et: 'MIDI eksporditud — ' },
     tracksWord: { en: ' tracks, ', et: ' rada, ' },
     bpmWord: { en: ' bpm', et: ' bpm' },

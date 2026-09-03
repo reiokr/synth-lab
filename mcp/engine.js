@@ -24,11 +24,14 @@ let page = null;
 let booting = null;
 
 function startStatic(rootDir) {
+  const rootResolved = path.resolve(rootDir);
   return new Promise((resolve, reject) => {
     const srv = http.createServer((req, res) => {
       const rel = decodeURIComponent(req.url.split('?')[0]).replace(/^\/+/, '');
-      const file = path.resolve(rootDir, rel || 'index.html');
-      if (!file.startsWith(path.resolve(rootDir))) {
+      const file = path.resolve(rootResolved, rel || 'index.html');
+      /* a prefix check alone would also admit a sibling dir like
+         <root>-extra; require the file to sit inside rootDir proper */
+      if (file !== rootResolved && !file.startsWith(rootResolved + path.sep)) {
         res.writeHead(403).end('forbidden');
         return;
       }
@@ -93,40 +96,9 @@ async function renderWav(projectDir, song) {
   const p = await ensure(projectDir);
   const b64 = await p.evaluate(async (s) => {
     const buf = await window.SYNTHLAB.composer.renderOffline(s);
-    const nch = buf.numberOfChannels;
-    const len = buf.length;
-    const sr = buf.sampleRate;
-    const dataBytes = len * nch * 2;
-    const ab = new ArrayBuffer(44 + dataBytes);
-    const v = new DataView(ab);
-    const tag = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
-
-    tag(0, 'RIFF');
-    v.setUint32(4, 36 + dataBytes, true);
-    tag(8, 'WAVE');
-    tag(12, 'fmt ');
-    v.setUint32(16, 16, true);
-    v.setUint16(20, 1, true);
-    v.setUint16(22, nch, true);
-    v.setUint32(24, sr, true);
-    v.setUint32(28, sr * nch * 2, true);
-    v.setUint16(32, nch * 2, true);
-    v.setUint16(34, 16, true);
-    tag(36, 'data');
-    v.setUint32(40, dataBytes, true);
-
-    const chans = [];
-    for (let c = 0; c < nch; c++) chans.push(buf.getChannelData(c));
-    let off = 44;
-    for (let i = 0; i < len; i++) {
-      for (let c = 0; c < nch; c++) {
-        let x = chans[c][i];
-        if (x > 1) x = 1; else if (x < -1) x = -1;
-        v.setInt16(off, x < 0 ? x * 0x8000 : x * 0x7fff, true);
-        off += 2;
-      }
-    }
-
+    /* reuse the app's own WAV writer so there is a single encoder */
+    const blob = window.SynthLab.encodeWav(buf);
+    const ab = await blob.arrayBuffer();
     const u8 = new Uint8Array(ab);
     let bin = '';
     const CHUNK = 0x8000;

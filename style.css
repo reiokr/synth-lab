@@ -661,6 +661,8 @@ body.view-patch #patchBar { display: flex; }
 .pd-meta { font-size: 10px; color: #5f6878; margin-top: 2px; }
 .pd-acts { display: flex; gap: 5px; flex: none; }
 .pd-empty { padding: 10px 2px; font-size: 11px; color: #5f6878; }
+#pdFolderOffer { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+#pdFolderOffer .btn { flex: none; }
 
 .modal-foot {
   display: flex;

@@ -59,17 +59,22 @@ function normalizeSong(raw) {
   s.scaleRoot = clamp(Math.round(Number(s.scaleRoot) || 0), 0, 11);
   s.scaleType = SL.SCALES[s.scaleType] ? s.scaleType : 'chromatic';
   s.scaleSnap = !!s.scaleSnap;
+  /* the app is a 16th-step grid only — ignore anything a foreign file claims */
+  s.stepsPerBar = 16;
   s.tracks = (Array.isArray(s.tracks) ? s.tracks : []).map((t, i) => {
+    const patch = SL.mergePatch(SL.defaultPatch(), (t && t.patch) || {});
+    const arp = Object.assign({}, SL.defaultPatch().arp, (t && (t.arp || (t.patch && t.patch.arp))) || {});
+    patch.arp = Object.assign({}, patch.arp, arp);
     const out = Object.assign(SL.newTrack(t && t.name, t && t.patch), t || {});
     out.name = (t && t.name) || 'Track ' + (i + 1);
-    out.patch = SL.mergePatch(SL.defaultPatch(), (t && t.patch) || {});
+    out.patch = patch;
+    out.arp = Object.assign({}, arp);
     out.notes = (Array.isArray(t && t.notes) ? t.notes : []).map((n) => ({
       step: Math.max(0, Math.round(Number(n.step) || 0)),
       len: Math.max(1, Math.round(Number(n.len) || 1)),
       pitch: clamp(Math.round(Number(n.pitch) || 60), 0, 127),
       vel: clamp(n.vel === undefined ? 0.9 : Number(n.vel), 0.05, 1)
     }));
-    out.arp = Object.assign({}, SL.defaultPatch().arp, (t && t.arp) || {});
     return out;
   });
   return s;
@@ -611,6 +616,8 @@ const HANDLERS = {
       octaves: clamp(Math.round(a.octaves === undefined ? t.arp.octaves : a.octaves), 1, 4),
       gate: clamp(Math.round(a.gate === undefined ? t.arp.gate : a.gate), 10, 100)
     };
+    /* mirror into the patch so the app's rack shows and plays the same thing */
+    if (t.patch) t.patch.arp = Object.assign({}, t.patch.arp, t.arp);
     return { track: t.name, arp: t.arp };
   }),
 

@@ -10,11 +10,16 @@ frameworks, no dependencies**. Open `index.html` and play.
 
 ```bash
 cd project-directory
-python3 -m http.server 8000    # or just double-click index.html
+node serve.js    # app + a tiny save API — songs land in json/ as .song.json
 ```
 
-Then open `http://localhost:8000`. Works in Chromium, Firefox and any other
-browser that supports Web Audio.
+Then open `http://localhost:8000`. With this server, creating a project and
+pressing Save (Ctrl+S) writes the `.song.json` file into `json/` on its own —
+no export/import and no folder permissions. The app also works from any static
+server (`python3 -m http.server 8000`) or straight from `index.html`; then
+projects are kept in the browser unless you link a folder with the Folder
+button (Chromium). Works in Chromium, Firefox and any other browser that
+supports Web Audio.
 
 ## What's inside
 
@@ -45,7 +50,20 @@ browser that supports Web Audio.
 - **WAV** — 16-bit stereo, 44.1 kHz, rendered by the same engine that plays
 - **.song.json** — download and re-load a song
 
-The interface is in **English and Estonian** (315 translated strings).
+**Projects**
+
+- creating a project saves it right away — `Save` / `Ctrl`+`S` then just keeps
+  the current one up to date
+- **node serve.js** — run the app through `node serve.js` and every save
+  writes the project's `.song.json` into the project's `json/` folder by
+  itself (the songs in it appear under Open, and rename / duplicate / delete
+  keep the files in sync). No permissions needed, works in every browser.
+- **Folder** — alternatively link any folder on disk with the Folder button
+  (Chromium): saving then writes the `.song.json` there. Without a server or a
+  linked folder projects live in the browser's local storage, and the JSON
+  export / import buttons still work.
+
+The interface is in **English and Estonian** (330 translated strings).
 
 ## Keyboard shortcuts
 

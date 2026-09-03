@@ -189,21 +189,27 @@
     s.scaleSnap = !!raw.scaleSnap;
     s.bars = [1, 2, 4, 8, 16, 32, 64].indexOf(Number(raw.bars)) >= 0 ? Number(raw.bars) : 2;
     s.masterVolume = clamp(raw.masterVolume === undefined ? 0.85 : Number(raw.masterVolume), 0, 1);
-    s.tracks = (Array.isArray(raw.tracks) ? raw.tracks : []).map((t, ti) => ({
-      name: String((t && t.name) || 'Track'),
-      patch: SL.mergePatch(SL.defaultPatch(), (t && t.patch) || {}),
-      volume: clamp(t.volume === undefined ? 0.9 : Number(t.volume), 0, 1),
-      pan: clamp(Number(t.pan) || 0, -1, 1),
-      mute: !!t.mute,
-      solo: !!t.solo,
-      show: t.show === undefined ? undefined : !!t.show,
-      notes: (Array.isArray(t.notes) ? t.notes : []).map((n) => ({
-        step: Math.max(0, Math.round(Number(n.step) || 0)),
-        len: Math.max(1, Math.round(Number(n.len) || 1)),
-        pitch: clamp(Math.round(Number(n.pitch) || 60), 0, 127),
-        vel: clamp(n.vel === undefined ? 0.9 : Number(n.vel), 0.05, 1)
-      }))
-    }));
+    s.tracks = (Array.isArray(raw.tracks) ? raw.tracks : []).map((t, ti) => {
+      const trkPatch = SL.mergePatch(SL.defaultPatch(), (t && t.patch) || {});
+      /* older files / the MCP server keep the arp config on the track, the
+         rack UI on the patch — fold both into the patch so they agree */
+      if (t && t.arp) trkPatch.arp = Object.assign({}, trkPatch.arp, t.arp);
+      return {
+        name: String((t && t.name) || 'Track'),
+        patch: trkPatch,
+        volume: clamp(t.volume === undefined ? 0.9 : Number(t.volume), 0, 1),
+        pan: clamp(Number(t.pan) || 0, -1, 1),
+        mute: !!t.mute,
+        solo: !!t.solo,
+        show: t.show === undefined ? undefined : !!t.show,
+        notes: (Array.isArray(t.notes) ? t.notes : []).map((n) => ({
+          step: Math.max(0, Math.round(Number(n.step) || 0)),
+          len: Math.max(1, Math.round(Number(n.len) || 1)),
+          pitch: clamp(Math.round(Number(n.pitch) || 60), 0, 127),
+          vel: clamp(n.vel === undefined ? 0.9 : Number(n.vel), 0.05, 1)
+        }))
+      };
+    });
     /* older songs have no show flag: default to the first track only */
     s.tracks.forEach((t, ti) => { if (t.show === undefined) t.show = ti === 0; });
     return s;
@@ -727,7 +733,6 @@
   function applyLang(lang) {
     I18N.setLang(lang);
     document.documentElement.lang = lang;
-    $('html').setAttribute('lang', lang);
 
     document.querySelectorAll('[data-i18n]').forEach((el) => {
       el.textContent = t(el.dataset.i18n);
@@ -1311,7 +1316,7 @@
       recording = !recording;
       $('#btnRec').classList.toggle('on', recording);
     });
-    $('#bpm').addEventListener('change', () => {
+    $('#bpm').addEventListener('input', () => {
       song.bpm = clamp(Number($('#bpm').value) || 120, 40, 240);
       $('#bpm').value = song.bpm;
       markDirty();
@@ -1651,6 +1656,7 @@
       del.addEventListener('click', (e) => {
         e.stopPropagation();
         if (!window.confirm('Delete track "' + t.name + '"?')) return;
+        if (composer && composer.engines[i]) composer.engines[i].allNotesOff();
         song.tracks.splice(i, 1);
         if (composer && composer.ctx) {
           composer.engines.splice(i, 1);
@@ -2132,13 +2138,18 @@
   }
 
   function createProject(name, template) {
+    name = uniqueName(name); /* never clobber an existing project by accident */
     const s = normalizeSong(blankProject(name, template));
     s.name = name;
     loadSong(s, { announce: false });
     setDirty(false);
     setView('compose');
     closeProjectDialog();
-    toast('new project "' + name + '"');
+    saveSongAsName(name); /* the new project is saved right away */
+    if (SL.Folder && !SL.Folder.connected() && !folderHintShown) {
+      folderHintShown = true;
+      toast(t('folderHint'));
+    }
   }
 
   function newProject() {
@@ -2172,11 +2183,20 @@
     const name = n.trim();
     if (!name || name === s.name) return;
     if (findSavedSong(name) >= 0) { toast('a project named "' + name + '" already exists'); return; }
+    const oldName = s.name;
     s.name = name;
+    if (song.name === oldName) {
+      song.name = name;
+      $('#songName').value = name;
+    }
     savedSongs.sort((a, b) => a.name.localeCompare(b.name));
     saveSongBank();
     renderProjectDialog();
     toast('renamed to "' + name + '"');
+    writeBankSong(s); /* the file follows the new name */
+    if (SL.Folder && SL.Folder.connected()) {
+      removeBankFile(SL.Folder.fileName({ name: oldName }));
+    }
   }
 
   function duplicateSavedSong(i) {
@@ -2190,6 +2210,7 @@
     saveSongBank();
     renderProjectDialog();
     toast('duplicated as "' + copy.name + '"');
+    writeBankSong(copy);
   }
 
   function deleteSavedSong(i) {
@@ -2200,6 +2221,7 @@
     saveSongBank();
     renderProjectDialog();
     toast('deleted "' + s.name + '"');
+    removeBankSong(s);
   }
 
   function guardUnsaved(action) {
@@ -2256,26 +2278,48 @@
 
   /* ------------------------------------------- a folder linked on the disk */
   let folderFiles = [];
+  let folderHintShown = false;
 
   function updateFolderButton() {
     const b = $('#btnFolder');
     if (!b) return;
-    if (!SL.Folder || !SL.Folder.supported()) {
+    if (!SL.Folder) return;
+    const on = SL.Folder.connected();
+    if (!SL.Folder.supported() && !on) {
       b.disabled = true;
       b.dataset.tip = t('folderUnsupported');
       return;
     }
-    const on = SL.Folder.connected();
+    b.disabled = false;
     b.classList.toggle('accent', on);
     b.textContent = on ? SL.Folder.folderName() : t('linkFolder', 'Folder');
     b.dataset.tip = on
-      ? 'Linked: ' + SL.Folder.folderName() + ' — saving writes a .song.json file here. Click to unlink.'
+      ? (SL.Folder.mode && SL.Folder.mode() === 'http'
+        ? t('btnFolderServerTip')
+        : 'Linked: ' + SL.Folder.folderName() + ' — saving writes a .song.json file here. Click to unlink.')
       : t('btnFolderTip');
   }
 
   /* List the .song.json files in the linked folder under Open. */
   function refreshFolder() {
     updateFolderButton();
+    const offer = $('#pdFolderOffer');
+    if (offer) {
+      const want = SL.Folder && !SL.Folder.connected();
+      offer.hidden = !want;
+      offer.innerHTML = '';
+      if (want) {
+        const span = document.createElement('span');
+        span.textContent = t('folderOffer');
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn sm';
+        b.textContent = t('linkFolder', 'Folder');
+        b.addEventListener('click', toggleFolder);
+        offer.appendChild(span);
+        offer.appendChild(b);
+      }
+    }
     const group = $('#pdFolderGroup');
     const box = $('#pdFolder');
     if (!group || !box) return;
@@ -2307,6 +2351,12 @@
     if (!SL.Folder || !SL.Folder.connected()) return;
     SL.Folder.read(file).then((data) => {
       if (!guardUnsaved('open "' + (data && data.name ? data.name : file) + '"')) return;
+      /* the file becomes a known project, so Ctrl+S just writes it back */
+      if (data && data.name && findSavedSong(data.name) < 0) {
+        savedSongs.push(SL.clone(data));
+        savedSongs.sort((a, b) => a.name.localeCompare(b.name));
+        saveSongBank();
+      }
       loadSong(data, { announce: true });
       setDirty(false);
       setView('compose');
@@ -2316,9 +2366,14 @@
 
   function deleteFolderSong(f) {
     if (!window.confirm(t('folderDeleteAsk') + ' (' + f.file + ')')) return;
+    const i = findSavedSong(f.name);
+    if (i >= 0) {
+      savedSongs.splice(i, 1);
+      saveSongBank();
+    }
     SL.Folder.remove(f.file).then(() => {
       toast(t('folderDeleted') + f.name);
-      refreshFolder();
+      renderProjectDialog();
     }).catch((e) => toast(t('folderWriteFailed') + (e && e.message ? e.message : e)));
   }
 
@@ -2329,6 +2384,45 @@
     SL.Folder.write(cleanSong(song)).then((file) => {
       toast(t('folderSaved') + file);
     }).catch((e) => toast(t('folderWriteFailed') + (e && e.message ? e.message : e)));
+  }
+
+  /* Write or remove a bank copy's file without touching the open song. */
+  function writeBankSong(data) {
+    if (!SL.Folder || !SL.Folder.connected()) return;
+    SL.Folder.write(data).then(() => refreshFolder())
+      .catch((e) => toast(t('folderWriteFailed') + (e && e.message ? e.message : e)));
+  }
+
+  function removeBankFile(file) {
+    if (!SL.Folder || !SL.Folder.connected()) return;
+    SL.Folder.remove(file).then(() => refreshFolder()).catch(() => { /* never written */ });
+  }
+
+  function removeBankSong(data) {
+    if (!SL.Folder || !SL.Folder.connected()) return;
+    removeBankFile(SL.Folder.fileName(data));
+  }
+
+  function toggleFolder() {
+    if (!SL.Folder) return;
+    if (SL.Folder.mode && SL.Folder.mode() === 'fs') {
+      if (!window.confirm(t('folderUnlinkAsk'))) return;
+      SL.Folder.disconnect().then(() => {
+        toast(t('folderUnlinked'));
+        refreshFolder();
+      });
+      return;
+    }
+    if (!SL.Folder.supported()) {
+      toast(SL.Folder.connected() ? t('folderServerActive') : t('folderUnsupported'));
+      return;
+    }
+    SL.Folder.connect().then(() => {
+      folderHintShown = true;
+      toast(t('folderLinked') + SL.Folder.folderName());
+      refreshFolder();
+      saveToFolder(); /* put the open song on disk right away */
+    }).catch(() => toast(t('folderDenied')));
   }
 
   function renderProjectDialog() {
@@ -2475,22 +2569,7 @@
     $('#btnNew').addEventListener('click', newProject);
     $('#btnOpen').addEventListener('click', openProjectDialog);
     $('#btnSongSave').addEventListener('click', saveCurrentSong);
-    $('#btnFolder').addEventListener('click', () => {
-      if (!SL.Folder) return;
-      if (!SL.Folder.supported()) { toast(t('folderUnsupported')); return; }
-      if (SL.Folder.connected()) {
-        if (!window.confirm(t('folderUnlinkAsk'))) return;
-        SL.Folder.disconnect().then(() => {
-          toast(t('folderUnlinked'));
-          refreshFolder();
-        });
-        return;
-      }
-      SL.Folder.connect().then(() => {
-        toast(t('folderLinked') + SL.Folder.folderName());
-        refreshFolder();
-      }).catch(() => toast(t('folderDenied')));
-    });
+    $('#btnFolder').addEventListener('click', toggleFolder);
     $('#btnSongSaveAs').addEventListener('click', () => saveSongAs(true));
     $('#pdClose').addEventListener('click', closeProjectDialog);
     $('#pdCreate').addEventListener('click', () => {
@@ -2704,10 +2783,12 @@
     updatePlayButton();
     startAutosave();
     updateFolderButton();
-    if (SL.Folder && SL.Folder.supported()) {
-      SL.Folder.restore().then((ok) => {
+    if (SL.Folder) {
+      SL.Folder.restore().then((m) => {
         updateFolderButton();
-        if (ok) toast(t('folderLinked') + SL.Folder.folderName());
+        refreshFolder();
+        if (m === 'fs') toast(t('folderLinked') + SL.Folder.folderName());
+        if (m === 'http') toast(t('folderServerActive'));
       });
     }
   }

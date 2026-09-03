@@ -10,11 +10,16 @@ heli mängib Web Audio API — **ehitussammu, raamistikke ja sõltuvusi pole**. 
 
 ```bash
 cd projektikataloog
-python3 -m http.server 8000    # või lihtsalt ava index.html topeltklõpsuga
+node serve.js    # rakendus + väike salvestus-API — lood lähevad json/ kausta .song.json failidena
 ```
 
-Seejärel mine brauseris `http://localhost:8000`. Töötab Chromiumis, Firefoxis ja
-teistes Web Audio't toetavates brauserites.
+Seejärel mine brauseris `http://localhost:8000`. Selle serveriga kirjutab uue
+projekti loomine ja Salvesta (Ctrl+S) `.song.json` faili ise `json/` kausta —
+ei ekspordi/impordi ega kaustalube. Rakendus töötab ka mõne muu staatilise
+serveriga (`python3 -m http.server 8000`) või otse `index.html`-ist; siis
+elavad projektid brauseris, kui pole Kausta nupuga kausta ühendatud
+(Chromium). Töötab Chromiumis, Firefoxis ja teistes Web Audio't toetavates
+brauserites.
 
 ## Mis sees on
 
@@ -43,7 +48,21 @@ teistes Web Audio't toetavates brauserites.
 - **WAV** — 16-bit stereo 44,1 kHz, renderdatakse sama mootoriga mis mängib
 - **.song.json** — laulu allalaadimine ja sisselugemine
 
-Liides on **eesti ja inglise** keeles (315 tõlgitud teksti).
+**Projektid**
+
+- uue projekti loomine salvestab selle kohe — `Salvesta` / `Ctrl`+`S` hoiab
+  edaspidi praegust ajakohasena
+- **node serve.js** — käivita rakendus läbi `node serve.js` ja iga salvestamine
+  kirjutab projekti `.song.json` faili ise projekti `json/` kausta (kaustas
+  olevad lood ilmuvad Avamise alla ning ümbernimetamine / duplikeerimine /
+  kustutamine hoiab failid sünkroonis). Ilma lubadeta, töötab kõigis
+  brauserites.
+- **Kaust** — teine võimalus: ühenda Kausta nupuga suvaline kettal olev kaust
+  (Chromium), siis kirjutab salvestamine `.song.json` faili sinna. Ilma
+  serverita ega ühendatud kaustata elavad projektid brauseri hoiustuses ja
+  JSON ekspordi / impordi nupud töötavad nagu enne.
+
+Liides on **eesti ja inglise** keeles (330 tõlgitud teksti).
 
 ## Kiirklahvid
 

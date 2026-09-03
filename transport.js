@@ -93,9 +93,18 @@
     return best < 0 ? 0 : (best > 127 ? 127 : best);
   }
 
+  /* Where a track's arpeggiator config lives. The rack UI writes into the
+   * patch (patch.arp) while the MCP tools write into the track (track.arp);
+   * this reads the patch first so the UI actually drives the scheduler, and
+   * falls back to the legacy track-level field. */
+  function effectiveArp(track) {
+    if (!track) return null;
+    return (track.patch && track.patch.arp) || track.arp || null;
+  }
+
   /* which arpeggio note (if any) a track plays on step `s` */
   function arpNoteFor(track, s) {
-    const a = track.arp;
+    const a = effectiveArp(track);
     if (!a || !a.on) return null;
     const rate = Math.max(1, Math.min(16, Math.round(a.rate || 2)));
     if (s % rate !== 0) return null;
@@ -187,11 +196,14 @@
   }
 
   /* Fill a track's patch with defaults, keeping the object identity so any
-   * live editor reference and the synth engine keep pointing at the same data. */
+   * live editor reference and the synth engine keep pointing at the same data.
+   * The arp config is mirrored onto the track too, so both the rack UI
+   * (patch.arp) and the scheduler/MCP (track.arp) see the same settings. */
   function fillPatch(track, patch) {
     const filled = SL.mergePatch(SL.defaultPatch(), patch || {});
     if (!track.patch || typeof track.patch !== 'object') track.patch = {};
     Object.keys(filled).forEach(function (k) { track.patch[k] = filled[k]; });
+    track.arp = filled.arp;
     return track.patch;
   }
 
@@ -308,7 +320,8 @@
       if (!isAudible(song, t)) continue;
       const eng = this.engines[i];
       if (!eng || !t._starts) continue;
-      if (t.arp && t.arp.on) {
+      const arp = effectiveArp(t);
+      if (arp && arp.on) {
         const an = arpNoteFor(t, s);
         if (an) {
           const end = when + Math.max(1, an.len) * sd * 0.98;
@@ -419,7 +432,7 @@
           break;
         }
         scheduleBatch();
-        octx.resume();
+        await octx.resume();
       }
       return rendering;
     })();
@@ -468,4 +481,5 @@
   SL.inScale = inScale;
   SL.snapPitch = snapPitch;
   SL.arpNoteFor = arpNoteFor;
+  SL.effectiveArp = effectiveArp;
 })(window);
